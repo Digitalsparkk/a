@@ -7,13 +7,11 @@ require("dotenv").config();
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
-const PUBLIC_DIR = path.join(__dirname, "public");
 const INBOX_DIR = path.join(__dirname, "data");
 const INBOX_FILE = path.join(INBOX_DIR, "enquiries.jsonl");
 
 app.disable("x-powered-by");
 app.use(helmet({
-  // This starter serves locally hosted assets and does not need inline scripts.
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -69,7 +67,6 @@ app.post("/api/contact", contactLimiter, (req, res) => {
     });
   }
 
-  // Practical basic email check; production systems may use a dedicated validator.
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({
       success: false,
@@ -115,8 +112,23 @@ app.post("/api/contact", contactLimiter, (req, res) => {
   });
 });
 
-// Serve website files from public/
-app.use(express.static(PUBLIC_DIR));
+// Serve only the public website files from the repository root. This avoids
+// exposing server.js, package files, or saved enquiry data through static hosting.
+const websiteFiles = {
+  "/": "index.html",
+  "/index.html": "index.html",
+  "/style.css": "style.css",
+  "/script.js": "script.js",
+  "/logo.svg": "logo.svg"
+};
+
+for (const [url, filename] of Object.entries(websiteFiles)) {
+  app.get(url, (req, res, next) => {
+    res.sendFile(path.join(__dirname, filename), (error) => {
+      if (error) next(error);
+    });
+  });
+}
 
 app.use("/api", (req, res) => {
   res.status(404).json({ success: false, message: "API endpoint not found." });
